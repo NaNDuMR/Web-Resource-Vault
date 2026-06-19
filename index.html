@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WRV // Web Resource Vault</title>
+<style>
+  :root{
+    --bg:#05070d;
+    --cyan:#00f6ff;
+    --magenta:#ff2cf1;
+    --green:#00ff9d;
+    --text:#cfe8ff;
+    --muted:#5a7390;
+    --card:#0c1322;
+    --border:rgba(0,246,255,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 20% -10%, rgba(0,246,255,0.08), transparent 40%),
+      radial-gradient(circle at 100% 0%, rgba(255,44,241,0.08), transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Consolas','Courier New',monospace;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  .grid-bg{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(0,246,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,246,255,0.05) 1px, transparent 1px);
+    background-size:40px 40px;
+    mask-image:radial-gradient(circle at 50% 20%, rgba(0,0,0,0.9), transparent 80%);
+  }
+  .scanline{
+    position:fixed; inset:0; pointer-events:none; z-index:1;
+    background:linear-gradient(transparent 0%, rgba(0,246,255,0.03) 50%, transparent 100%);
+    background-size:100% 4px;
+    animation:scan 8s linear infinite;
+    opacity:0.4;
+  }
+  @keyframes scan{ from{background-position:0 0;} to{background-position:0 100px;} }
+
+  header{ position:relative; z-index:2; text-align:center; padding:48px 20px 30px; }
+  header h1{
+    font-size:clamp(28px,6vw,52px);
+    letter-spacing:6px;
+    margin:0;
+    color:#fff;
+    text-shadow:0 0 5px var(--cyan), 0 0 20px var(--cyan), 0 0 40px rgba(0,246,255,0.5);
+    animation:flicker 4s infinite;
+  }
+  @keyframes flicker{ 0%,97%,100%{opacity:1;} 98%{opacity:0.85;} 99%{opacity:1;} }
+  header p{ color:var(--muted); letter-spacing:3px; margin-top:10px; font-size:13px; text-transform:uppercase; }
+  header .bar{
+    width:min(500px,80%); height:2px; margin:18px auto 0;
+    background:linear-gradient(90deg, transparent, var(--cyan), var(--magenta), transparent);
+    box-shadow:0 0 10px var(--cyan);
+  }
+
+  .search-wrap{ max-width:600px; margin:0 auto 40px; padding:0 20px; position:relative; z-index:2; }
+  #search{
+    width:100%; padding:14px 18px; background:var(--card);
+    border:1px solid var(--border); color:var(--cyan);
+    font-family:inherit; font-size:14px; letter-spacing:1px;
+    border-radius:6px; outline:none; transition:all .25s;
+  }
+  #search::placeholder{color:var(--muted);}
+  #search:focus{
+    border-color:var(--cyan);
+    box-shadow:0 0 15px rgba(0,246,255,0.4), inset 0 0 15px rgba(0,246,255,0.05);
+  }
+
+  main{ position:relative; z-index:2; max-width:1300px; margin:0 auto; padding:0 24px 60px; }
+  .category{ margin-bottom:42px; }
+  .category h2{
+    font-size:16px; letter-spacing:3px; text-transform:uppercase;
+    color:var(--green); border-bottom:1px solid var(--border);
+    padding-bottom:10px; margin-bottom:18px; display:flex; align-items:center; gap:10px;
+  }
+  .category h2::before{ content:'▹'; color:var(--magenta); }
+
+  .grid{ display:none; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; margin-top:15px; }
+  .grid.open{display:grid;}
+  .category h2{cursor:pointer;}
+
+  .card{
+    background:linear-gradient(160deg, var(--card), #0a0e18);
+    border:1px solid var(--border); border-radius:8px; padding:16px 18px;
+    cursor:pointer; position:relative; overflow:hidden;
+    transition:transform .2s, box-shadow .2s, border-color .2s;
+  }
+  .card::before{
+    content:''; position:absolute; top:0; left:-100%; width:100%; height:100%;
+    background:linear-gradient(120deg, transparent, rgba(0,246,255,0.12), transparent);
+    transition:left .5s;
+  }
+  .card:hover{
+    transform:translateY(-4px); border-color:var(--cyan);
+    box-shadow:0 8px 25px rgba(0,246,255,0.15), 0 0 0 1px rgba(0,246,255,0.2);
+  }
+  .card:hover::before{ left:100%; }
+  .card .name{ font-size:14.5px; color:#fff; font-weight:bold; letter-spacing:0.5px; margin-bottom:6px; word-break:break-word; }
+  .card .url{ font-size:11px; color:var(--muted); word-break:break-all; }
+  .card .go{
+    margin-top:10px; font-size:10px; letter-spacing:2px; color:var(--cyan);
+    opacity:0; transform:translateX(-6px); transition:all .2s;
+  }
+  .card:hover .go{ opacity:1; transform:translateX(0); }
+
+  footer{ text-align:center; color:var(--muted); font-size:11px; letter-spacing:2px; padding:20px; border-top:1px solid var(--border); }
+  ::selection{ background:var(--magenta); color:#000; }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="scanline"></div>
+
+<header>
+  <h1>WEB RESOURCE VAULT</h1>
+  
+  <div class="bar"></div>
+</header>
+
+<main id="main"></main>
+
+<footer>Created by NaNDu MR</footer>
+
+<script>
+const DATA = [
+  { cat: "Movies & Streaming", items: [
+    ["StreamIMDb", "https://streamimdb.ru/"],
+    ["Watchibly", "https://watchibly.to/"],
+    ["CineSpot", "https://cinespot.to/"],
+    ["GuideFlix", "https://guideflix.to/"],
+    ["YTS", "https://yts.gg/"],
+    ["YoMovies", "https://yomovies.kitchen/"],
+    ["SwatchSeries", "https://swatchseries.cx/"],
+    ["MovieBox", "https://moviebox.ph/"],
+    ["OTT Checker", "https://ottchecker.com/"],
+    ["Nothing To Watch", "https://nothing-to-watch.port80.ch"]
+  ]},
+  { cat: "Anime Resources", items: [
+    ["EverythingMoe", "https://everythingmoe.com/"]
+  ]},
+  { cat: "Weather, Space & Natural Events", items: [
+    ["Weather.com", "https://weather.com/"],
+    ["Ventusky", "https://www.ventusky.com/"],
+    ["NOAA SWPC", "https://www.swpc.noaa.gov/"],
+    ["SpaceWeather", "https://www.spaceweather.com/"],
+    ["TheSkyLive", "https://theskylive.com/"],
+    ["EMSC Earthquakes", "https://m.emsc.eu/"],
+    ["Tsunami.gov", "https://www.tsunami.gov/"]
+  ]},
+  { cat: "Finance & Markets", items: [
+    ["World Monitor", "https://www.worldmonitor.app/"],
+    ["Glint Trade", "https://glint.trade/"]
+  ]},
+  { cat: "Wallpapers", items: [
+    ["WallpaperFlare", "https://www.wallpaperflare.com/"],
+    ["Wallpapers Clan", "https://wallpapers-clan.com/"],
+    ["PeakPx", "https://www.peakpx.com/"],
+    ["MoeWalls", "https://moewalls.com/"]
+  ]},
+  { cat: "OSINT & Research", items: [
+    ["OSINT Framework", "https://osintframework.com/"]
+  ]},
+  { cat: "Technology & Knowledge", items: [
+    ["Ancient Origins", "https://www.ancient-origins.net/"],
+    ["XDA Developers", "https://www.xda-developers.com/"]
+  ]},
+  { cat: "Utilities & Tools", items: [
+    ["White Screen", "https://www.whitescreen.online/"],
+    ["Made In Text", "https://www.madeintext.com/"],
+    ["ShadeMap", "https://shademap.app/"],
+    ["Amithv", "https://amithv.xyz/"]
+  ]},
+  { cat: "Automotive", items: [
+    ["Car Care Kiosk", "https://www.carcarekiosk.com/"]
+  ]},
+  { cat: "Repair & DIY", items: [
+    ["iFixit", "https://www.ifixit.com/"]
+  ]},
+  { cat: "Gaming", items: [
+    ["Poki", "https://poki.com/"],
+    ["Floor796", "https://floor796.com/"]
+  ]},
+  { cat: "Design & Creative Resources", items: [
+    ["ProductionCrate", "https://www.productioncrate.com/"],
+    ["Tinkercad", "https://www.tinkercad.com/"]
+  ]},
+  { cat: "Temporary Numbers & SMS", items: [
+    ["Temp-Number", "https://temp-number.com/"],
+    ["Receive-SMSs", "https://receive-smss.com/"]
+  ]},
+  { cat: "Network & Tracking Tools", items: [
+    ["IP Logger", "https://iplogger.org/"]
+  ]},
+  { cat: "Social Analytics", items: [
+    ["FameLack", "https://famelack.com/"]
+  ]}
+];
+
+const main = document.getElementById('main');
+
+function render(filter=""){
+  main.innerHTML = "";
+  const f = filter.trim().toLowerCase();
+  let anyVisible = false;
+
+  DATA.forEach(group=>{
+    const filteredItems = group.items.filter(([name,url])=>
+      name.toLowerCase().includes(f) || url.toLowerCase().includes(f) || group.cat.toLowerCase().includes(f)
+    );
+    if(filteredItems.length === 0) return;
+    anyVisible = true;
+
+    const section = document.createElement('div');
+    section.className = 'category';
+
+    const h2 = document.createElement('h2');
+    h2.textContent = group.cat;
+    section.appendChild(h2);
+
+    const grid = document.createElement('div');
+    h2.addEventListener('click', ()=>{
+      grid.classList.toggle('open');
+    });
+    grid.className = 'grid';
+
+    filteredItems.forEach(([name,url])=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="name">${name}</div>
+        <div class="url">${url}</div>
+        <div class="go">▸ LAUNCH</div>
+      `;
+      card.addEventListener('click', ()=> window.open(url, '_blank', 'noopener'));
+      grid.appendChild(card);
+    });
+
+    section.appendChild(grid);
+    main.appendChild(section);
+  });
+
+  if(!anyVisible){
+    main.innerHTML = `<p style="text-align:center;color:var(--muted);margin-top:40px;">// no matching resources found</p>`;
+  }
+}
+render();</script>
+
+</body>
+</html>
